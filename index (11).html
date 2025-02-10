@@ -1,0 +1,359 @@
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dichiarazione fondo cassa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
+</head>
+<body class="bg-gray-100 p-5">
+    <div class="max-w-lg mx-auto bg-white p-5 rounded-lg shadow-lg mb-5">
+        <h1 class="text-center text-blue-500 text-2xl mb-5">Inserisci i Dati</h1>
+        <form id="dataForm">
+            <label for="importo" class="block font-bold mb-1">Importo:</label>
+            <input type="number" id="importo" required step="0.01" class="w-full border border-gray-300 rounded px-3 py-2 mb-3">
+
+            <label for="causale" class="block font-bold mb-1">Causale:</label>
+            <select id="causale" required class="w-full border border-gray-300 rounded px-3 py-2 mb-3">
+                <option value="">Seleziona una causale</option>
+            </select>
+
+            <label for="note" class="block font-bold mb-1">Note (opzionale):</label>
+            <textarea id="note" rows="4" class="w-full border border-gray-300 rounded px-3 py-2 mb-3"></textarea>
+
+            <button type="submit" class="w-full bg-green-500 text-white px-4 py-2 rounded transition duration-300 hover:bg-green-700">Registra Movimento</button>
+        </form>
+
+        <table id="dataTable" class="w-full border-collapse mt-5">
+            <thead>
+                <tr>
+                    <th class="border border-gray-300 px-3 py-2 bg-gray-200">Data e Ora</th>
+                    <th class="border border-gray-300 px-3 py-2 bg-gray-200">Importo</th>
+                    <th class="border border-gray-300 px-3 py-2 bg-gray-200">Tipo</th>
+                    <th class="border border-gray-300 px-3 py-2 bg-gray-200">Causale</th>
+                    <th class="border border-gray-300 px-3 py-2 bg-gray-200">Note</th>
+                    <th class="border border-gray-300 px-3 py-2 bg-gray-200">Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+            <tfoot>
+                <tr class="font-bold bg-gray-200">
+                    <td colspan="4" class="border border-gray-300 px-3 py-2">Totale</td>
+                    <td id="totalAmount" class="border border-gray-300 px-3 py-2">0.00</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="max-w-lg mx-auto bg-white p-5 rounded-lg shadow-lg mb-5">
+        <h2 class="text-center text-blue-500 text-xl mb-5">Gestione Causali</h2>
+        <div class="causale-form bg-gray-100 p-3 rounded-lg shadow-inner" id="causaleForm">
+            <label for="causaleNome" class="block font-bold mb-1">Nome Causale:</label>
+            <input type="text" id="causaleNome" class="w-full border border-gray-300 rounded px-3 py-2 mb-3">
+
+            <label for="causaleTipo" class="block font-bold mb-1">Tipo:</label>
+            <select id="causaleTipo" class="w-full border border-gray-300 rounded px-3 py-2 mb-3">
+                <option value="entrata">Entrata</option>
+                <option value="uscita">Uscita</option>
+            </select>
+        </div>
+        <div class="flex justify-between mt-3">
+            <button type="button" id="addCausaleBtn" class="bg-green-500 text-white px-4 py-2 rounded transition duration-300 hover:bg-green-700">Aggiungi Causale</button>
+            <button type="button" id="editCausaleBtn" class="bg-yellow-500 text-white px-4 py-2 rounded transition duration-300 hover:bg-yellow-700">Modifica Causale</button>
+            <button type="button" id="removeCausaleBtn" class="bg-red-500 text-white px-4 py-2 rounded transition duration-300 hover:bg-red-700">Elimina Causale</button>
+        </div>
+    </div>
+
+    <div class="max-w-lg mx-auto bg-white p-5 rounded-lg shadow-lg mb-5">
+        <div class="mb-5">
+            <input type="email" id="emailInput" placeholder="Inserisci la tua email" class="w-full border border-gray-300 rounded px-3 py-2 mb-3">
+            <button type="button" id="sendEmailBtn" class="w-full bg-orange-500 text-white px-4 py-2 rounded transition duration-300 hover:bg-orange-700">Invia Email</button>
+        </div>
+        <div class="mb-5">
+            <button type="button" id="nuovaGiornataBtn" class="w-full bg-blue-500 text-white px-4 py-2 rounded transition duration-300 hover:bg-blue-700">Nuova Giornata</button>
+        </div>
+    </div>
+
+    <script>
+        const causaleSelect = document.getElementById('causale');
+        const addCausaleBtn = document.getElementById('addCausaleBtn');
+        const editCausaleBtn = document.getElementById('editCausaleBtn');
+        const removeCausaleBtn = document.getElementById('removeCausaleBtn');
+        const causaleForm = document.getElementById('causaleForm');
+        const dataTableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
+        const totalAmountElement = document.getElementById('totalAmount');
+        const nuovaGiornataBtn = document.getElementById('nuovaGiornataBtn');
+        const emailInput = document.getElementById('emailInput');
+        const sendEmailBtn = document.getElementById('sendEmailBtn');
+        let total = 0;
+        let isEditing = false;
+        let editingIndex = -1;
+
+        function saveMovementsToLocalStorage() {
+            const rows = Array.from(dataTableBody.rows).map(row => {
+                return {
+                    dataOra: row.cells[0].textContent,
+                    importo: parseFloat(row.cells[1].textContent),
+                    tipo: row.cells[2].textContent,
+                    causale: row.cells[3].textContent,
+                    note: row.cells[4].textContent
+                };
+            });
+            localStorage.setItem('movements', JSON.stringify(rows));
+            localStorage.setItem('total', total.toFixed(2));
+        }
+
+        function loadMovementsFromLocalStorage() {
+            const movements = JSON.parse(localStorage.getItem('movements')) || [];
+            total = parseFloat(localStorage.getItem('total')) || 0;
+            totalAmountElement.textContent = total.toFixed(2);
+
+            movements.forEach(movement => {
+                const newRow = dataTableBody.insertRow();
+                newRow.insertCell(0).textContent = movement.dataOra;
+                const importoCell = newRow.insertCell(1);
+                importoCell.textContent = movement.importo.toFixed(2);
+                importoCell.setAttribute("contenteditable", "true");
+                const tipoCell = newRow.insertCell(2);
+                tipoCell.textContent = movement.tipo;
+                tipoCell.setAttribute("contenteditable", "true");
+                const causaleCell = newRow.insertCell(3);
+                causaleCell.textContent = movement.causale;
+                causaleCell.setAttribute("contenteditable", "true");
+                const noteCell = newRow.insertCell(4);
+                noteCell.textContent = movement.note;
+                noteCell.setAttribute("contenteditable", "true");
+
+                const actionsCell = newRow.insertCell(5);
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = '❌';
+                removeBtn.classList.add('bg-orange-500', 'text-white', 'border-none', 'px-2', 'py-1', 'cursor-pointer', 'rounded', 'mr-2');
+                removeBtn.addEventListener('click', function() {
+                    if (movement.tipo === "entrata") {
+                        total -= movement.importo;
+                    } else if (movement.tipo === "uscita") {
+                        total += movement.importo;
+                    }
+                    totalAmountElement.textContent = total.toFixed(2);
+                    newRow.remove();
+                    saveMovementsToLocalStorage();
+                });
+
+                const editBtn = document.createElement('button');
+                editBtn.textContent = '✏️';
+                editBtn.classList.add('bg-yellow-500', 'text-white', 'border-none', 'px-2', 'py-1', 'cursor-pointer', 'rounded');
+                editBtn.addEventListener('click', function() {
+                    const cells = newRow.cells;
+                    document.getElementById('importo').value = parseFloat(cells[1].textContent);
+                    document.getElementById('causale').value = cells[3].textContent;
+                    document.getElementById('note').value = cells[4].textContent;
+                    newRow.remove();
+                    if (movement.tipo === "entrata") {
+                        total -= movement.importo;
+                    } else if (movement.tipo === "uscita") {
+                        total += movement.importo;
+                    }
+                    totalAmountElement.textContent = total.toFixed(2);
+                    saveMovementsToLocalStorage();
+                });
+
+                actionsCell.appendChild(editBtn);
+                actionsCell.appendChild(removeBtn);
+            });
+        }
+
+        sendEmailBtn.addEventListener('click', function() {
+            const email = emailInput.value;
+            if (email) {
+                const table = document.getElementById("dataTable");
+                const headers = Array.from(table.getElementsByTagName("th")).map(th => th.textContent);
+
+                if (headers.length === 0) {
+                    alert("La tabella è vuota.");
+                    return;
+                }
+
+                let emailContent = "Tabella Chiusura:\n\n";
+                emailContent += headers.slice(0, -1).join(' | ') + '\n';
+                emailContent += '-'.repeat(50) + '\n';
+
+                const tableRows = Array.from(table.querySelectorAll("tbody tr"));
+                tableRows.forEach(row => {
+                    const cells = Array.from(row.cells).slice(0, -1);
+                    emailContent += cells.map(cell => cell.textContent.trim()).join(' | ') + '\n';
+                });
+
+                emailContent += '\n' + '-'.repeat(50) + '\n';
+                emailContent += `Totale: ${totalAmountElement.textContent} €\n`;
+                const encodedContent = encodeURIComponent(emailContent);
+
+                window.location.href = `mailto:${email}?subject=Tabella Chiusura&body=${encodedContent}`;
+            } else {
+                alert("Inserisci un'email per inviare.");
+            }
+        });
+
+        addCausaleBtn.addEventListener('click', function() {
+            const causaleNome = document.getElementById('causaleNome').value;
+            const causaleTipo = document.getElementById('causaleTipo').value;
+
+            if (causaleNome) {
+                const option = document.createElement('option');
+                option.value = causaleNome;
+                option.textContent = `${causaleNome} (${causaleTipo})`;
+                causaleSelect.appendChild(option);
+
+                const causali = JSON.parse(localStorage.getItem('causali')) || [];
+                causali.push({ nome: causaleNome, tipo: causaleTipo });
+                localStorage.setItem('causali', JSON.stringify(causali));
+
+                document.getElementById('causaleNome').value = '';
+                document.getElementById('causaleTipo').selectedIndex = 0;
+            }
+        });
+
+        editCausaleBtn.addEventListener('click', function() {
+            const selectedOption = causaleSelect.selectedIndex;
+            if (selectedOption === 0) {
+                alert("Seleziona una causale da modificare.");
+                return;
+            }
+
+            const causali = JSON.parse(localStorage.getItem('causali')) || [];
+            const causale = causali[selectedOption - 1];
+
+            document.getElementById('causaleNome').value = causale.nome;
+            document.getElementById('causaleTipo').value = causale.tipo;
+            isEditing = true;
+            editingIndex = selectedOption;
+        });
+
+        removeCausaleBtn.addEventListener('click', function() {
+            const selectedOption = causaleSelect.selectedIndex;
+            if (selectedOption === 0) {
+                alert("Seleziona una causale da eliminare.");
+                return;
+            }
+
+            const causali = JSON.parse(localStorage.getItem('causali')) || [];
+            const causaleNome = causaleSelect.options[selectedOption].value;
+
+            const updatedCausali = causali.filter(causale => causale.nome !== causaleNome);
+            localStorage.setItem('causali', JSON.stringify(updatedCausali));
+
+            causaleSelect.removeChild(causaleSelect.options[selectedOption]);
+            alert(`Causale "${causaleNome}" eliminata con successo.`);
+        });
+
+        document.getElementById('dataForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            if (causaleSelect.value === "") {
+                alert("Per favore, seleziona una causale.");
+                return;
+            }
+
+            const importo = parseFloat(document.getElementById('importo').value);
+            const tipo = causaleSelect.value ? causaleSelect.selectedOptions[0].text.split('(')[1].replace(')', '').trim() : '';
+            const causale = causaleSelect.value;
+            const note = document.getElementById('note').value;
+            const dataOra = new Date().toLocaleString();
+
+            if (!tipo) {
+                alert("Errore: seleziona una causale valida.");
+                return;
+            }
+
+            const newRow = dataTableBody.insertRow();
+            newRow.insertCell(0).textContent = dataOra;
+            const importoCell = newRow.insertCell(1);
+            importoCell.textContent = importo.toFixed(2);
+            importoCell.setAttribute("contenteditable", "true");
+            const tipoCell = newRow.insertCell(2);
+            tipoCell.textContent = tipo;
+            tipoCell.setAttribute("contenteditable", "true");
+            const causaleCell = newRow.insertCell(3);
+            causaleCell.textContent = causale;
+            causaleCell.setAttribute("contenteditable", "true");
+            const noteCell = newRow.insertCell(4);
+            noteCell.textContent = note;
+            noteCell.setAttribute("contenteditable", "true");
+
+            const actionsCell = newRow.insertCell(5);
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = '❌';
+            removeBtn.classList.add('bg-red-500', 'text-white', 'border-none', 'px-2', 'py-1', 'cursor-pointer', 'rounded', 'mr-2');
+            removeBtn.addEventListener('click', function() {
+                if (tipo === "entrata") {
+                    total -= importo;
+                } else if (tipo === "uscita") {
+                    total += importo;
+                }
+                totalAmountElement.textContent = total.toFixed(2);
+                newRow.remove();
+                saveMovementsToLocalStorage();
+            });
+
+            const editBtn = document.createElement('button');
+            editBtn.textContent = '✏️';
+            editBtn.classList.add('bg-yellow-500', 'text-white', 'border-none', 'px-2', 'py-1', 'cursor-pointer', 'rounded');
+            editBtn.addEventListener('click', function() {
+                const cells = newRow.cells;
+                document.getElementById('importo').value = parseFloat(cells[1].textContent);
+                document.getElementById('causale').value = cells[3].textContent;
+                document.getElementById('note').value = cells[4].textContent;
+                newRow.remove();
+                if (tipo === "entrata") {
+                    total -= importo;
+                } else if (tipo === "uscita") {
+                    total += importo;
+                }
+                totalAmountElement.textContent = total.toFixed(2);
+                saveMovementsToLocalStorage();
+            });
+
+            actionsCell.appendChild(editBtn);
+            actionsCell.appendChild(removeBtn);
+
+            if (tipo === "entrata") {
+                total += importo;
+            } else if (tipo === "uscita") {
+                total -= importo;
+            }
+
+            totalAmountElement.textContent = total.toFixed(2);
+            document.getElementById('dataForm').reset();
+            saveMovementsToLocalStorage();
+        });
+
+        nuovaGiornataBtn.addEventListener('click', function() {
+            while (dataTableBody.rows.length > 0) {
+                dataTableBody.deleteRow(0);
+            }
+
+            total = 0;
+            totalAmountElement.textContent = total.toFixed(2);
+            document.getElementById('dataForm').reset();
+            localStorage.removeItem('movements');
+            localStorage.removeItem('total');
+        });
+
+        function loadCausali() {
+            const causali = JSON.parse(localStorage.getItem('causali')) || [];
+            causaleSelect.innerHTML = '<option value="">Seleziona una causale</option>';
+            causali.forEach(causale => {
+                const option = document.createElement('option');
+                option.value = causale.nome;
+                option.textContent = `${causale.nome} (${causale.tipo})`;
+                causaleSelect.appendChild(option);
+            });
+        }
+
+        window.addEventListener('load', function() {
+            loadCausali();
+            loadMovementsFromLocalStorage();
+        });
+    </script>
+</body>
+</html>
